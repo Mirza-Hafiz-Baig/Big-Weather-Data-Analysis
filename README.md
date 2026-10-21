@@ -1,4 +1,4 @@
-# CropX Protocol: Weather Event Register
+# National Big Weather Data Analytics: Weather Event Register
 
 A National Weather Big Data Analytics Platform prototype built for Smart India Hackathon 2026. It collects weather-related posts (rainfall, flooding, thunderstorms), classifies them, flags suspicious or duplicate reports, and shows everything on a live dashboard where an admin can verify or reject reports.
 
