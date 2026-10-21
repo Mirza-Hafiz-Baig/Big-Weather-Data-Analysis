@@ -1,1 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CropX Protocol — Weather Event Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1e2a3a;
+    --paper: #f4f3ee;
+    --paper-raised: #fbfaf7;
+    --rule: #d7d2c4;
+    --muted: #6d7686;
+    --teal: #3b6e5e;
+    --ochre: #a9712f;
+    --brick: #a3433b;
+    --plum: #5b5272;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Sans', Arial, sans-serif; margin: 0; color: var(--ink);
+    background: var(--paper);
+  }
+  h1, h2, h3, .serif { font-family: 'Source Serif 4', Georgia, serif; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header {
+    background: var(--paper-raised); border-bottom: 2px solid var(--ink);
+    padding: 22px 30px; display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  header .wordmark { font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
+  header .subhead { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  header .status { text-align: right; font-size: 13px; color: var(--muted); }
+  header .status .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background: var(--teal); margin-right: 7px; position: relative; top: -1px; }
+  header .status .time { font-family: 'IBM Plex Mono', monospace; color: var(--ink); }
+
+  .container { max-width: 1480px; margin: 0 auto; padding: 0 30px 44px; }
+
+  .ledger {
+    display: flex; border: 1px solid var(--rule); background: var(--paper-raised); margin: 26px 0;
+  }
+  .ledger .cell { flex: 1; padding: 18px 22px; border-right: 1px solid var(--rule); }
+  .ledger .cell:last-child { border-right: none; }
+  .ledger .num { font-family: 'Source Serif 4', serif; font-size: 30px; font-weight: 600; line-height: 1; }
+  .ledger .label { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .ledger .cell.pending .num { color: var(--ochre); }
+  .ledger .cell.flagged .num { color: var(--brick); }
+
+  .toolbar {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    padding: 14px 18px; border: 1px solid var(--rule); background: var(--paper-raised); margin-bottom: 22px;
+  }
+  .toolbar label { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .toolbar select, .toolbar input {
+    padding: 6px 9px; border-radius: 3px; border: 1px solid var(--rule); font-family: inherit; font-size: 13px;
+    background: #fff; color: var(--ink);
+  }
+  .toolbar select:focus, .toolbar input:focus { outline: 1px solid var(--ink); }
+  .toolbar button {
+    padding: 7px 16px; border-radius: 3px; border: 1px solid var(--ink); background: var(--ink); color: #fff;
+    font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .toolbar button.secondary { background: transparent; color: var(--ink); }
+
+  .grid { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 22px; }
+  .col-left { flex: 2; min-width: 360px; }
+  .col-right { flex: 1; min-width: 300px; }
+
+  .panel { border: 1px solid var(--rule); background: var(--paper-raised); padding: 18px 20px; }
+  .panel h2 { margin: 0 0 14px; font-size: 16px; font-weight: 600; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+
+  #map { height: 420px; width: 100%; border: 1px solid var(--rule); }
+  #chart-container { height: 240px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: var(--paper-raised); color: var(--muted); font-weight: 500; font-size: 12px;
+    padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--ink);
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  tbody tr:hover { background: #efede4; }
+
+  .status-tag {
+    font-size: 12px; font-weight: 500; padding: 2px 0;
+    border-bottom: 2px solid currentColor;
+  }
+  .status-tag.pending { color: var(--ochre); }
+  .status-tag.verified { color: var(--teal); }
+  .status-tag.rejected { color: var(--muted); }
+  .status-tag.flagged { color: var(--brick); }
+  .status-tag.duplicate { color: var(--plum); }
+
+  .event-tag { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+  .event-tag svg { flex-shrink: 0; }
+
+  .fake-score { font-family: 'IBM Plex Mono', monospace; color: var(--muted); }
+
+  button.admin-btn {
+    border: 1px solid var(--ink); padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 11.5px;
+    margin-right: 5px; font-weight: 500; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  button.btn-verify:hover { background: var(--teal); border-color: var(--teal); color: #fff; }
+  button.btn-reject:hover { background: var(--brick); border-color: var(--brick); color: #fff; }
+
+  .table-wrap { max-height: 460px; overflow-y: auto; }
+
+  footer { text-align: center; font-size: 12px; color: var(--muted); padding: 24px 0 4px; border-top: 1px solid var(--rule); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="wordmark">CropX Protocol</div>
+    <div class="subhead">Weather Event Register — verified reports from across India</div>
+  </div>
+  <div class="status">
+    <div><span class="dot"></span>Live feed</div>
+    <div>updated <span class="time" id="last-updated">--:--:--</span></div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="ledger">
+    <div class="cell"><div class="num" id="stat-total">0</div><div class="label">Reports received</div></div>
+    <div class="cell"><div class="num" id="stat-verified">0</div><div class="label">Verified</div></div>
+    <div class="cell pending"><div class="num" id="stat-pending">0</div><div class="label">Awaiting review</div></div>
+    <div class="cell flagged"><div class="num" id="stat-flagged">0</div><div class="label">Flagged or duplicate</div></div>
+  </div>
+
+  <div class="toolbar">
+    <label>Event
+      <select id="filter-event"><option value="all">All</option></select>
+    </label>
+    <label>City
+      <select id="filter-city"><option value="all">All</option></select>
+    </label>
+    <label>Status
+      <select id="filter-status">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="verified">Verified</option>
+        <option value="rejected">Rejected</option>
+        <option value="flagged">Flagged</option>
+        <option value="duplicate">Duplicate</option>
+      </select>
+    </label>
+    <label>From <input type="date" id="filter-date-from"></label>
+    <label>To <input type="date" id="filter-date-to"></label>
+    <button onclick="loadPosts()">Apply filters</button>
+    <button class="secondary" onclick="clearFilters()">Clear</button>
+  </div>
+
+  <div class="grid">
+    <div class="col-left panel">
+      <h2>Event map</h2>
+      <div id="map"></div>
+    </div>
+    <div class="col-right panel">
+      <h2>Reports by event type</h2>
+      <div id="chart-container"><canvas id="statsChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Report register and verification queue</h2>
+    <div class="table-wrap">
+    <table id="posts-table">
+      <thead>
+        <tr>
+          <th>Time</th><th>City</th><th>State</th><th>Event</th>
+          <th>Trust</th><th>Duplicate</th><th>Status</th><th>Report</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="posts-tbody"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <footer>CropX Protocol — National Weather Big Data Analytics Platform, built for Smart India Hackathon 2026</footer>
+
+</div>
+
+<script>
+const ICON_SVG = {
+  rainfall: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 19l-1 3M13 19l-1 3M18 19l-1 3"/><path d="M6 15a5 5 0 1 1 1-9.9A6 6 0 0 1 19 9a4 4 0 0 1-1 7.9H6z"/></svg>',
+  flooding: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M2 18c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/></svg>',
+  thunderstorm: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15a5 5 0 1 1 1-9.9A6 6 0 0 1 19 9a4 4 0 0 1-1 7.9h-2"/><path d="M12 17l-2 4h3l-2 4"/></svg>',
+  uncategorized: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><circle cx="12" cy="16" r="0.3" fill="currentColor"/></svg>'
+};
+const EVENT_COLORS = {
+  rainfall: '#3b6e5e',
+  flooding: '#355d8a',
+  thunderstorm: '#a9712f',
+  uncategorized: '#6d7686'
+};
+
+let map = L.map('map', { zoomControl: true }).setView([22.9734, 78.6569], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+let markers = [];
+let chart = null;
+
+function coloredIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${color};width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.35);"></div>`,
+    iconSize: [13, 13],
+    iconAnchor: [7, 7]
+  });
+}
+
+function setNumber(el, target) {
+  el.textContent = target;
+}
+
+async function loadFilterOptions() {
+  const cities = await (await fetch('/api/cities')).json();
+  const citySelect = document.getElementById('filter-city');
+  cities.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    citySelect.appendChild(opt);
+  });
+
+  const eventSelect = document.getElementById('filter-event');
+  Object.keys(ICON_SVG).forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e; opt.textContent = e;
+    eventSelect.appendChild(opt);
+  });
+}
+
+function clearFilters() {
+  document.getElementById('filter-event').value = 'all';
+  document.getElementById('filter-city').value = 'all';
+  document.getElementById('filter-status').value = 'all';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value = '';
+  loadPosts();
+}
+
+function updateStats(posts) {
+  setNumber(document.getElementById('stat-total'), posts.length);
+  setNumber(document.getElementById('stat-verified'), posts.filter(p => p.verification_status === 'verified').length);
+  setNumber(document.getElementById('stat-pending'), posts.filter(p => p.verification_status === 'pending').length);
+  setNumber(document.getElementById('stat-flagged'), posts.filter(p => ['flagged', 'duplicate'].includes(p.verification_status)).length);
+  document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+}
+
+async function loadPosts() {
+  const params = new URLSearchParams({
+    event: document.getElementById('filter-event').value,
+    city: document.getElementById('filter-city').value,
+    status: document.getElementById('filter-status').value,
+    date_from: document.getElementById('filter-date-from').value,
+    date_to: document.getElementById('filter-date-to').value,
+  });
+
+  const posts = await (await fetch('/api/posts?' + params)).json();
+  updateStats(posts);
+
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  const tbody = document.getElementById('posts-tbody');
+  tbody.innerHTML = '';
+
+  posts.forEach(post => {
+    const color = EVENT_COLORS[post.predicted_category] || '#6d7686';
+    if (post.location && post.location.coordinates) {
+      const [lon, lat] = post.location.coordinates;
+      const marker = L.marker([lat, lon], { icon: coloredIcon(color) })
+        .addTo(map)
+        .bindPopup(`<strong>${post.predicted_category}</strong><br>${post.city}, ${post.state}<br>${post.text}`);
+      markers.push(marker);
+    }
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="mono">${new Date(post.timestamp).toLocaleTimeString()}</td>
+      <td>${post.city}</td>
+      <td>${post.state}</td>
+      <td><span class="event-tag">${ICON_SVG[post.predicted_category] || ICON_SVG.uncategorized}${post.predicted_category}</span></td>
+      <td class="fake-score">${post.fake_score}</td>
+      <td>${post.is_duplicate ? 'Yes' : 'No'}</td>
+      <td><span class="status-tag ${post.verification_status}">${post.verification_status}</span></td>
+      <td>${post.text}</td>
+      <td>
+        ${post.verification_status === 'pending' ? `
+          <button class="admin-btn btn-verify" onclick="verifyPost('${post._id}')">Verify</button>
+          <button class="admin-btn btn-reject" onclick="rejectPost('${post._id}')">Reject</button>
+        ` : ''}
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function verifyPost(id) {
+  await fetch(`/api/verify/${id}`, { method: 'POST' });
+  loadPosts();
+}
+
+async function rejectPost(id) {
+  await fetch(`/api/reject/${id}`, { method: 'POST' });
+  loadPosts();
+}
+
+async function loadStats() {
+  const stats = await (await fetch('/api/stats')).json();
+  const labels = Object.keys(stats);
+  const ctx = document.getElementById('statsChart').getContext('2d');
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Reports',
+        data: Object.values(stats),
+        backgroundColor: labels.map(l => EVENT_COLORS[l] || '#6d7686'),
+        borderRadius: 2,
+        maxBarThickness: 40
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#e5e1d4' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+async function refreshAll() {
+  await loadPosts();
+  await loadStats();
+}
+
+loadFilterOptions().then(refreshAll);
+setInterval(refreshAll, 8000);
+</script>
+
+</body>
+</html>
 
