@@ -87,6 +87,5 @@ Then open http://127.0.0.1:5000 in your browser.
 - Faster duplicate detection (e.g. TF-IDF or embeddings)
 - Authentication for the admin panel
 
-## Author
-
-Mirza Baig
+## Explanation of prototype
+https://youtu.be/7ovA-PxZVec?si=24s6dU8a2x6rZ-p0
