@@ -1,2 +1,92 @@
-# Big-Weather-Data-Analysis
-A scalable platform built on Databricks to process and analyze large weather datasets. Cleans and aggregates the data to uncover trends in temperature, rainfall, and other climate patterns, and presents the results through visualizations. Built during a hackathon to show how big data tools can turn raw weather records into usable insights.
+# CropX Protocol: Weather Event Register
+
+A National Weather Big Data Analytics Platform prototype built for Smart India Hackathon 2026. It collects weather-related posts (rainfall, flooding, thunderstorms), classifies them, flags suspicious or duplicate reports, and shows everything on a live dashboard where an admin can verify or reject reports.
+
+> **Note:** The incoming posts are simulated. A data simulator generates social-media-style posts for Indian cities so the full pipeline can be demonstrated without live API access.
+
+## How it works
+
+```
+data_simulator.py  ->  MongoDB  ->  process_posts.py  ->  MongoDB  ->  app.py (Flask)  ->  Dashboard
+ (fake live feed)                    (classify, dedupe,                  (JSON API + admin)
+                                      fake-score)
+```
+
+1. **`data_simulator.py`** generates a new fake post every 3 seconds (text, city, GPS coordinates, source, hashtags, optional media) and inserts it into MongoDB.
+2. **`process_posts.py`** polls for unprocessed posts and adds:
+   - `predicted_category`: keyword-based event classification (rainfall / flooding / thunderstorm)
+   - `is_duplicate`: flagged using text similarity (`difflib`, threshold 0.75)
+   - `fake_score`: an explainable 0-1 heuristic (missing media, very short text, no hashtags, unverified citizen report)
+   - `verification_status`: `duplicate`, `flagged`, or `pending`
+3. **`app.py`** is a Flask backend that serves the dashboard and a JSON API.
+
+## Features
+
+- Filter posts by event type, city, verification status, and date range
+- Event statistics via a MongoDB aggregation pipeline
+- GeoJSON locations with a `2dsphere` index for map-based views
+- Interactive map (Leaflet) with colour-coded event markers, and a Chart.js bar chart of reports by event type
+- Live dashboard that auto-refreshes every 8 seconds
+- Admin queue to verify or reject reports
+- Rule-based scoring chosen so each decision can be explained
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Dashboard page |
+| GET | `/api/posts` | Filtered posts (`event`, `city`, `status`, `date_from`, `date_to`) |
+| GET | `/api/stats` | Post count per predicted category |
+| GET | `/api/cities` | List of cities |
+| POST | `/api/verify/<post_id>` | Mark a post as verified |
+| POST | `/api/reject/<post_id>` | Mark a post as rejected |
+
+## Tech stack
+
+Python, Flask, MongoDB (PyMongo), Faker, difflib, HTML/CSS/JavaScript, Leaflet, Chart.js
+
+## Project structure
+
+```
+.
+├── app.py
+├── data_simulator.py
+├── process_posts.py
+└── templates/
+    └── dashboard.html
+```
+
+## Setup
+
+**Requirements:** Python 3.8+ and MongoDB running locally on `mongodb://localhost:27017`.
+
+```bash
+pip install flask pymongo faker
+```
+
+Run each script in its own terminal:
+
+```bash
+python data_simulator.py
+python process_posts.py
+python app.py
+```
+
+Then open http://127.0.0.1:5000 in your browser.
+
+## Limitations
+
+- Posts are simulated, not collected from real social media.
+- Classification and fake detection are keyword and heuristic based, not a trained ML model.
+- Duplicate detection compares recent posts pairwise, so it is not built for large scale.
+
+## Future improvements
+
+- Connect real data sources (social media APIs, IMD feeds)
+- Replace the heuristics with a trained classifier
+- Faster duplicate detection (e.g. TF-IDF or embeddings)
+- Authentication for the admin panel
+
+## Author
+
+Mirza Baig
