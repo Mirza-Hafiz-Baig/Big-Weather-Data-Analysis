@@ -89,3 +89,46 @@ Then open http://127.0.0.1:5000 in your browser.
 
 ## Explanation of prototype
 https://youtu.be/7ovA-PxZVec?si=24s6dU8a2x6rZ-p0
+🗺️ Project Roadmap
+
+* [x]	Simulated weather report generation
+* [x]	Automated event classification
+* [x]	Duplicate report detection
+* [x]	Suspicious report scoring
+* [x]	Interactive dashboard and geospatial visualization
+* [ ]	Real-time weather data integration
+* [ ]	AI-powered report verification
+* [ ]	Multilingual report processing
+* [ ]	Automated regional risk assessment
+* [ ]	Scalable national weather monitoring
+
+
+🧠 Weather Event Correlation
+
+A future extension of the platform could correlate reports using geographical proximity, timestamps, event categories, and textual similarity.
+
+How It Would Work
+
+1. Collect reports from nearby geographical locations.
+2. Compare their timestamps and predicted event categories.
+3. Identify clusters of reports that may describe the same incident.
+4. Assign a common event identifier to related reports.
+5. Display the resulting event clusters on the dashboard.
+
+Expected benefit: Transform isolated weather reports into a more coherent view of developing weather incidents.
+
+This capability is proposed for future development and is not part of the current prototype unless implemented separately.
+
+🌐 Multilingual Weather Intelligence
+
+Weather reports may be submitted in different Indian languages, including Hindi, Marathi, Bengali, and English.
+
+A future version could incorporate multilingual text processing to:
+
+* Recognize weather-related keywords across supported languages.
+* Translate reports into a common language for analysis.
+* Classify incidents independently of the language used.
+* Preserve original text for administrative verification.
+
+This enhancement could make the platform more accessible to users across different regions of India.
+
